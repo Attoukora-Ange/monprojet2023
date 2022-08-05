@@ -107,7 +107,7 @@ body("PasseGenere")
 .withMessage(`Le code généré n'est pas valide`)
 .trim(), 
 controllers.postCodeReinitialise)
-Routes.post("/deconnexion", controllers.postDeconnexion);
+Routes.get("/deconnexion", controllers.postDeconnexion);
 
 //Requete PUT
 Routes.put("/modifier/utilisateur",

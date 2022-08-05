@@ -1,10 +1,6 @@
 const mongoose = require("mongoose");
 
 const UserSchema = mongoose.Schema({
-  userPhoto: {
-    type: String,
-  },
-
   nom: {
     type: String,
     lowercase: true,
@@ -21,7 +17,7 @@ const UserSchema = mongoose.Schema({
     maxLength: 255,
     trim: true,
   },
-  birthDay: {
+  dateNaissance: {
     type: String,
   },
   sexe: {

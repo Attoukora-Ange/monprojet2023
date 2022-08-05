@@ -6,7 +6,7 @@ const createToken = (payload) => {
 const verifieToken = (req, res, next) => {
   const payload = req.cookies.access_token;
   if (!payload) {
-    return res.status(200).json("Veuillez vous connecté");
+    return res.status(500).json("Veuillez vous connecté");
   }
   try {
     const data = JWT.verify(payload, process.env.JWT_KEY);

@@ -11,6 +11,7 @@ const Question = require("../Models/Question");
 const Position = require("../Models/Position");
 const nodemailer = require("nodemailer");
 const Visiteur = require("../Models/Visiteur");
+const Cookies = require("cookie-parser");
 
 //Constant de nodemailler
 let transporter = nodemailer.createTransport({
@@ -25,10 +26,10 @@ let transporter = nodemailer.createTransport({
 
 //Controller Obtenir la liste des utilusateurs en triant
 module.exports.getListeUtilisateur = async (req, res) => {
-  const trier = req.query;
+  // const trier = req.query;
   try {
-    console.log(trier);
-    const Utilisateurs = await User.find().sort(trier);
+    // console.log(trier);
+    const Utilisateurs = await User.find().sort({nom : 1});
 
     Utilisateurs.forEach((Utilisateur) => {
       if (Utilisateur == "")
@@ -49,13 +50,16 @@ module.exports.getListeUtilisateur = async (req, res) => {
 //Controller Obtenir la liste des utilusateurs en triant
 module.exports.getListeUtilisateurRecherche = async (req, res) => {
   const { nomUtilisateur } = req.query;
+  if(nomUtilisateur == '')  return res.status(403).json("Veuillez entrer un nom");
   try {
-    const RechercherUnUtilisateur = await User.find({
+    const RecherParNom = await User.find({
       nom: { $in: [nomUtilisateur] },
     });
-    if (RechercherUnUtilisateur == "")
+   
+    if (RecherParNom == "" ) 
       return res.status(403).json("Aucun utilisateur trouvé");
-    return res.status(200).json(RechercherUnUtilisateur);
+      
+    return res.status(200).json(RecherParNom);
   } catch (error) {
     console.log(error.message);
     res
@@ -160,8 +164,10 @@ module.exports.getUnMedicamentsRecherche = async (req, res) => {
   const { specialite } = req.query;
   try {
     const RechercheUnMedicament = await Medicament.find({
-      "Medicament.specialite": { $in: [specialite] },
+      "Medicament.specialite": { $in: [specialite] }, 
+
     });
+   
     if (RechercheUnMedicament == "")
       return res.status(403).json("Aucun médicament trouvé");
     console.log("Un medicament obtenue");
@@ -199,7 +205,7 @@ module.exports.getFichierDocumentRecherche = async (req, res) => {
 module.exports.getListeMedicament = async (req, res) => {
   //la pagination
   const page = parseInt(req.query.page ? req.query.page : 1);
-  const limit = 5;
+  const limit = 20;
   const debutIndex = (page - 1) * limit;
   const listeCompleteMedicament = {};
   const ToutMedicament = await Medicament.find();
@@ -220,7 +226,7 @@ module.exports.getListeMedicament = async (req, res) => {
     listeCompleteMedicament.ListeDetailMedicament = await Medicament.find()
       .limit(limit)
       .skip(debutIndex);
-    console.log(listeCompleteMedicament.ListeDetailMedicament.length);
+    console.log(listeCompleteMedicament);
     return res.status(200).json(listeCompleteMedicament);
   } catch (error) {
     console.log(error.message);
@@ -294,16 +300,20 @@ module.exports.getUnConseil = async (req, res) => {
   }
 };
 
-
-
 //Controller ajouter un document
 module.exports.postAjouterDocument = async (req, res) => {
-  if(!req.file) return res.status(200).json('Aucun fichier à ajouter');
+  if (!req.file) return res.status(200).json("Aucun fichier à ajouter");
   const fichierDocument = req.file;
   const titreDocument = req.body.titreDocument.trim();
   const typeFichier = req.body.typeFichier.trim();
 
- if((fichierDocument.mimetype != 'text/plain') && (fichierDocument.mimetype != 'application/pdf')) return res.status(200).json('Format invalide car le fichier doit être de type .txt ou .pdf');
+  if (
+    fichierDocument.mimetype != "text/plain" &&
+    fichierDocument.mimetype != "application/pdf"
+  )
+    return res
+      .status(200)
+      .json("Format invalide car le fichier doit être de type .txt ou .pdf");
   try {
     const newFichierDocument = new FichierDocument({
       typeFichier,
@@ -488,12 +498,6 @@ module.exports.putAjouterAssurance = async (req, res) => {
   const idTable = 0; //pour obtenir le premier element du tableau
   let unSeulProduit = {}; //pour ajouter des proprites au resultat de medicament
   const assurance = null;
-  // const assurance = {
-  //   //les assurances a ajouter
-  //   ascoma: others.ascoma,
-  //   willis: others.willis,
-  //   ips: others.ips,
-  // };
 
   //Capture des erreur au cours de la modification
   const errors = validationResult(req);
@@ -530,7 +534,7 @@ module.exports.postReinitialisation = async (req, res) => {
     const MotPasseOublie = await User.findOne({ email: emailReinitialisation });
     if (!MotPasseOublie)
       return res
-        .status(200)
+        .status(203)
         .json(`Aucun utilisateur n'a été trouvé avec cette adresse email`);
 
     var mailOptions = {
@@ -543,16 +547,14 @@ module.exports.postReinitialisation = async (req, res) => {
     transporter.sendMail(mailOptions, async (error, info) => {
       if (error) {
         console.log(error);
-        res.status(200).json(`Erreur d'envoye de message`);
+        res.status(203).json(`Erreur d'envoye de message`);
       } else {
         console.log("Email et reponse envoyés " + info.response);
         res.cookie("idutilisateuroublie", MotPasseOublie._id);
         await User.findByIdAndUpdate(MotPasseOublie._id, { PasseGenere });
         res
           .status(200)
-          .json(
-            "Votre code a été envoyé à l'adresse email envoyée avec succès"
-          );
+          .json("Votre code a été envoyé à l'adresse email avec succès");
       }
     });
   } catch (error) {
@@ -578,7 +580,7 @@ module.exports.postCodeReinitialise = async (req, res) => {
       return res.status(200).json(`Aucun utilisateur n'a été trouvé`);
     if (utilisateurMotPasseOublier.PasseGenere != PasseGenere)
       return res
-        .status(200)
+        .status(203)
         .json(
           `Le code entré est incorrect, veuillez entrer le bon code envoyé par email`
         );
@@ -692,18 +694,25 @@ module.exports.postCreerPremierMedicament = async (req, res) => {
 module.exports.postInscription = async (req, res) => {
   const verify = Math.floor(Math.random() * 10000000 + 1);
 
-  let { userPhoto, password, ...others } = req.body;
+  let { password, confPassword, ...others } = req.body;
+
+  console.log(password, confPassword, others);
   //Capture des erreur au cours de la validation
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
+    if (password != confPassword)
+      return res
+        .status(203)
+        .json(`Le mot de passe et la confirmation ne sont pas identique`);
+
     //On verifie si l'email existe déja avant de l'enregister
     const existeEmail = await User.findOne({ email: others.email });
     if (existeEmail)
       return res
-        .status(200)
+        .status(203)
         .json(`L'email existe déja, veuillez choisir un autre`);
 
     /////////////////////////////////////////////////
@@ -715,13 +724,13 @@ module.exports.postInscription = async (req, res) => {
     <h3>Pour activer votre compte sur le site PHARMA 36,
     veuillez cliquer sur ce lien:
     <br/>
-      <a href='${process.env.LOCALHOST}/verification?verify=${verify}'> CLICK ICI POUR ACTIVER LE COMPTE </a></p>
-    </h2>`,
+      <a target='_' href='${process.env.DOMAINE}/activation/verification/${verify}'> CLICK ICI POUR ACTIVER LE COMPTE </a></p>
+    </h3>`,
     };
     transporter.sendMail(mailOptions, function (error, info) {
       if (error) {
         console.log(error);
-        res.status(200).json(`Erreur d'envoye de message`);
+        return res.status(203).json(`Erreur d'envoye de message`);
       } else {
         //Quand tous les champs sont bien remplis
         const hash = bcrypt.genSaltSync(10);
@@ -746,7 +755,7 @@ module.exports.postInscription = async (req, res) => {
               return res
                 .status(200)
                 .json(
-                  `Votre compte a été crée avec succès. Vous recevrez un email pour l'activation de votre compte`
+                  `Votre compte a été crée avec succès, vous avez réçu un email pour l'activer`
                 );
             })
             .catch((err) => {
@@ -778,7 +787,7 @@ module.exports.postInscription = async (req, res) => {
               return res
                 .status(200)
                 .json(
-                  `Votre compte a été crée avec succès. Vous recevrez un email pour l'activation de votre compte`
+                  `Votre compte a été crée avec succès. Vous avez réçu un email pour l'activer`
                 );
             })
             .catch((err) => {
@@ -809,7 +818,7 @@ module.exports.postInscription = async (req, res) => {
 module.exports.postConnexion = async (req, res) => {
   const userEmail = req.body.email;
   const userPassword = req.body.password;
-
+  console.log(userEmail, userPassword);
   //Capture des erreur au cours de la validation
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -818,7 +827,7 @@ module.exports.postConnexion = async (req, res) => {
   try {
     //On verifie si l'email existe déja avant de l'enregister
     const existeEmail = await User.findOne({ email: userEmail });
-    if (!existeEmail) return res.status(200).json(`L'email n'existe pas`);
+    if (!existeEmail) return res.status(203).json(`L'email n'existe pas`);
 
     //Si l'utilisateur (email) existe, on verifie le mot de passe
     const verifiePassword = bcrypt.compareSync(
@@ -826,11 +835,11 @@ module.exports.postConnexion = async (req, res) => {
       existeEmail.password
     );
     if (!verifiePassword)
-      return res.status(200).json(`Le mot de passe n'existe pas`);
+      return res.status(203).json(`Le mot de passe n'existe pas`);
     const activation = await User.findOne({ email: userEmail });
     if (!activation.active)
       return res
-        .status(200)
+        .status(203)
         .json(
           `Votre compte n'est pas encore activé. Vous devez l'activer à partir du lien envoyé sur votre compte`
         );
@@ -839,7 +848,14 @@ module.exports.postConnexion = async (req, res) => {
       existeEmail._doc;
     const token = createToken(payload);
     console.log(token);
-    res.cookie("access_token", token);
+    res.cookie("access_token", token, {
+      expires: new Date(Date.now() + 3600 * 1000 * 24 * 180 * 1), //second min hour days year
+      // secure: true,
+      path: "/",
+      httpOnly: true, // backend only
+      sameSite: "strict", // set to none for cross-request
+    });
+
     const totalNombreVisiteur = await Visiteur.findOne();
     const totalNombrePersonne = await User.findOne({ email: userEmail });
 
@@ -860,7 +876,7 @@ module.exports.postConnexion = async (req, res) => {
       });
       await User.findByIdAndUpdate(totalNombrePersonne._id, { nombreVisite });
     }
-    return res.status(200).json(`Utilisateur authentifié`);
+    return res.status(200).json("Vous êtes bien authentifié");
   } catch (error) {
     //Erreur au niveau du server
     res
@@ -874,13 +890,14 @@ module.exports.postConnexion = async (req, res) => {
 module.exports.postDeconnexion = (req, res) => {
   try {
     //Suppresion du token donc deconnexion de l'utilisateur
-    res.cookie("access_token", "");
-    return res.status(200).json("Utilisateur à été déconnécté");
+    res.clearCookie("access_token");
+    // res.cookie("access_token", "");
+    return res.status(200).json("Vous avez été déconnécté");
   } catch (error) {
     res
       .status(500)
       .json(
-        `Quelque chose de mauvais s'est passé au cours de la modification de mot de passe`
+        `Quelque chose de mauvais s'est passé au cours de la deconnexion`
       );
   }
 };
@@ -923,7 +940,7 @@ module.exports.getVerification = async (req, res) => {
     if (verify != verifierInscription.verification)
       return res
         .status(403)
-        .json(`Erreur, la verification ${verify} n'est pas correct`);
+        .json(`Ce lien avec l'identifiant ${verify} n'est plus valide, veuillez contacter l'administrateur par email`);
 
     const activeUtilisateur = await User.findByIdAndUpdate(id, {
       active: true,
@@ -933,7 +950,7 @@ module.exports.getVerification = async (req, res) => {
 
     await User.findByIdAndUpdate(id, { verification: "" });
     console.log(activeUtilisateur);
-    res.status(200).json("Activation du compte a été effectué avec succès");
+    res.status(200).json("Votre compte a été activé avec succès");
   } catch (error) {
     console.log(error);
     res
@@ -945,6 +962,7 @@ module.exports.getVerification = async (req, res) => {
 };
 module.exports.getUnUtilisateur = async (req, res) => {
   const { id } = req.params;
+  console.log("lalongueur " + id)
   try {
     const UnUtilisateur = await User.findOne({ _id: id });
     const { password, ...other } = UnUtilisateur._doc;
@@ -954,7 +972,7 @@ module.exports.getUnUtilisateur = async (req, res) => {
     res
       .status(500)
       .json(
-        `Quelque chose de mauvais s'est passé au cours de la modification de mot de passe`
+        `Quelque chose de mauvais s'est passé au cours de l'obtention de l'utilisateur`
       );
   }
 };
