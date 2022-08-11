@@ -4,7 +4,8 @@ const controllers = require("../Controllers/controllers");
 const { verifieToken } = require("../Controllers/createJwt");
 
 //Requete GET
-Routes.get("/liste/utilisateur", verifieToken, controllers.getListeUtilisateur);
+
+Routes.get("/visiteur", controllers.getVisiteur);
 Routes.get("/liste/medicament", verifieToken, controllers.getListeMedicament);
 Routes.get("/liste/fichier", verifieToken, controllers.getListeFichierDocument);
 Routes.get("/liste/conseil", verifieToken, controllers.getConseil);
@@ -15,11 +16,13 @@ Routes.get("/rechercher/utilisateur", verifieToken, controllers.getListeUtilisat
 Routes.get("/rechercher/laboratoire", verifieToken, controllers.getListeLaboratoireRecherche);
 Routes.get("/rechercher/medicament", verifieToken, controllers.getUnMedicamentsRecherche);
 Routes.get("/recherche/fichier/document", verifieToken, controllers.getFichierDocumentRecherche);
+Routes.get("/telecharger/fichier/document/:id", verifieToken, controllers.getTelechargerFichierDocument);
+Routes.get("/telecharger/fichier/document/telecharger/:id", verifieToken, controllers.getTelechargerFichierDocumentTelecharger);
 
 Routes.get("/connecter", verifieToken, controllers.getUtilisateurConnecter);
 Routes.get("/verification", controllers.getVerification);
 Routes.get("/conseil/:id", verifieToken, controllers.getUnConseil);
-Routes.get("/utilisateur/:id", verifieToken, controllers.getUnUtilisateur);
+
 Routes.get("/medicament/:id", verifieToken, controllers.getUnMedicaments);
 Routes.get("/laboratoire/:id", verifieToken, controllers.getUnLaboratoire);
 

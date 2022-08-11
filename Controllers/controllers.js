@@ -12,6 +12,7 @@ const Position = require("../Models/Position");
 const nodemailer = require("nodemailer");
 const Visiteur = require("../Models/Visiteur");
 const Cookies = require("cookie-parser");
+const path = require("path");
 
 //Constant de nodemailler
 let transporter = nodemailer.createTransport({
@@ -24,12 +25,31 @@ let transporter = nodemailer.createTransport({
   },
 });
 
+//Controller Obtenir le nombre de visiteur
+module.exports.getVisiteur = async (req, res) => {
+  try {
+    const Visiteurs = await Visiteur.find();
+
+    Visiteurs.forEach((visite) => {
+      if (visite == "")
+        return res.status(403).json("Aucun visiteur trouvé sur le site");
+    });
+    return res.status(200).json(Visiteurs);
+  } catch (error) {
+    console.log(error.message);
+    res
+      .status(500)
+      .json(
+        `Quelque chose de mauvais s'est passé au cours de l'obtention de visiteur`
+      );
+  }
+};
 //Controller Obtenir la liste des utilusateurs en triant
 module.exports.getListeUtilisateur = async (req, res) => {
   // const trier = req.query;
   try {
     // console.log(trier);
-    const Utilisateurs = await User.find().sort({nom : 1});
+    const Utilisateurs = await User.find().sort({ nom: 1 });
 
     Utilisateurs.forEach((Utilisateur) => {
       if (Utilisateur == "")
@@ -41,24 +61,26 @@ module.exports.getListeUtilisateur = async (req, res) => {
     console.log(error.message);
     res
       .status(500)
-      .json(
-        `Quelque chose de mauvais s'est passé au cours de la modification de mot de passe`
-      );
+      .json(`Quelque chose de mauvais s'est passé au cours de l'utilisateur`);
   }
 };
 
 //Controller Obtenir la liste des utilusateurs en triant
 module.exports.getListeUtilisateurRecherche = async (req, res) => {
   const { nomUtilisateur } = req.query;
-  if(nomUtilisateur == '')  return res.status(403).json("Veuillez entrer un nom");
+  if (nomUtilisateur == "")
+    return res.status(403).json("Veuillez entrer un nom");
+  User.createIndexes({ nom: "text" });
   try {
     const RecherParNom = await User.find({
-      nom: { $in: [nomUtilisateur] },
+      $text: {
+        $search: nomUtilisateur,
+      },
     });
-   
-    if (RecherParNom == "" ) 
+
+    if (RecherParNom == "")
       return res.status(403).json("Aucun utilisateur trouvé");
-      
+
     return res.status(200).json(RecherParNom);
   } catch (error) {
     console.log(error.message);
@@ -134,7 +156,6 @@ module.exports.getUnLaboratoire = async (req, res) => {
   const { id } = req.params;
   try {
     const UnLabortoire = await Laboratoire.findOne({ _id: id });
-    console.log("Un laboratoire obtenue");
     res.status(200).json(UnLabortoire);
   } catch (error) {
     console.log(error.message);
@@ -162,15 +183,16 @@ module.exports.getPosition = async (req, res) => {
 };
 module.exports.getUnMedicamentsRecherche = async (req, res) => {
   const { specialite } = req.query;
+  Medicament.createIndexes({ specialite: "text" });
   try {
     const RechercheUnMedicament = await Medicament.find({
-      "Medicament.specialite": { $in: [specialite] }, 
-
+      $text: {
+        $search: specialite,
+      },
     });
-   
+
     if (RechercheUnMedicament == "")
       return res.status(403).json("Aucun médicament trouvé");
-    console.log("Un medicament obtenue");
     res.status(200).json(RechercheUnMedicament);
   } catch (error) {
     console.log(error.message);
@@ -189,7 +211,6 @@ module.exports.getFichierDocumentRecherche = async (req, res) => {
     });
     if (RechercheFichierDocument == "")
       return res.status(403).json("Aucun fichier document trouvé");
-    console.log("Un fichier document obtenue");
     res.status(200).json(RechercheFichierDocument);
   } catch (error) {
     console.log(error.message);
@@ -197,6 +218,37 @@ module.exports.getFichierDocumentRecherche = async (req, res) => {
       .status(500)
       .json(
         `Quelque chose de mauvais s'est passé au cours de l'obtention de recherche de fichier document`
+      );
+  }
+};
+module.exports.getTelechargerFichierDocument = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const Undocument = await FichierDocument.findOne({ _id: id });
+    res.status(200).json(Undocument);
+  } catch (error) {
+    console.log(error.message);
+    res
+      .status(500)
+      .json(
+        `Quelque chose de mauvais s'est passé au cours de l'obtention d'un docuemnt`
+      );
+  }
+};
+module.exports.getTelechargerFichierDocumentTelecharger = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const Undocument = await FichierDocument.findOne({ _id: id });
+    console.log(Undocument.fichierDocument);
+    const unFichier = Undocument.fichierDocument;
+    const Fichier = `./Fichier/${unFichier}`;
+    res.download(Fichier);
+  } catch (error) {
+    console.log(error.message);
+    res
+      .status(500)
+      .json(
+        `Quelque chose de mauvais s'est passé au cours de l'obtention d'un docuemnt`
       );
   }
 };
@@ -241,7 +293,7 @@ module.exports.getListeMedicament = async (req, res) => {
 //Controller obtenir la liste des fichiers du document
 module.exports.getListeFichierDocument = async (req, res) => {
   let page = parseInt(req.query.page);
-  const limit = 5;
+  const limit = 10;
   const listeCompleteFicheDocument = {};
   const debutIndex = (page - 1) * limit;
 
@@ -262,8 +314,10 @@ module.exports.getListeFichierDocument = async (req, res) => {
     }
 
     listeCompleteFicheDocument.ListeFichierDocument =
-      await FichierDocument.find().limit(limit).skip(debutIndex);
-    console.log(listeCompleteFicheDocument);
+      await FichierDocument.find()
+        .sort({ typeFichier: 1 })
+        .limit(limit)
+        .skip(debutIndex);
     res.status(200).json(listeCompleteFicheDocument);
   } catch (error) {
     console.log(error.message);
@@ -302,10 +356,26 @@ module.exports.getUnConseil = async (req, res) => {
 
 //Controller ajouter un document
 module.exports.postAjouterDocument = async (req, res) => {
-  if (!req.file) return res.status(200).json("Aucun fichier à ajouter");
+  const titreDocument = req.body.titreDocument;
+  const typeFichier = req.body.typeFichier;
+
+  if (
+    !titreDocument ||
+    titreDocument.length < 3 ||
+    titreDocument == "undefined"
+  )
+    return res
+      .status(200)
+      .json("Au moins 3 caractères requis pour le champs TITRE du document");
+
+  if (!typeFichier || typeFichier.length < 3 || typeFichier == "undefined")
+    return res
+      .status(200)
+      .json("Au moins 3 caractères requis pour le champs TYPE du document");
+
+  if (!req.file || req.file === undefined)
+    return res.status(200).json("Aucun fichier à ajouter");
   const fichierDocument = req.file;
-  const titreDocument = req.body.titreDocument.trim();
-  const typeFichier = req.body.typeFichier.trim();
 
   if (
     fichierDocument.mimetype != "text/plain" &&
@@ -321,14 +391,13 @@ module.exports.postAjouterDocument = async (req, res) => {
       fichierDocument: fichierDocument.filename,
     });
     newFichierDocument.save();
-    console.log(newFichierDocument);
     res.status(200).json("Fichier sauvegardé avec succes");
   } catch (error) {
     console.log(error.message);
     res
       .status(500)
       .json(
-        `Quelque chose de mauvais s'est passé au cours de la modification de mot de passe`
+        `Quelque chose de mauvais s'est passé au cours de lenregistrement du fichier document`
       );
   }
 };
@@ -360,7 +429,6 @@ module.exports.postPoseQuestion = async (req, res) => {
           question,
         });
         newQuestion.save();
-        console.log("Email et question envoiyés " + info.response);
         res.status(200).json("Question envoyée avec succès");
       }
     });
@@ -384,8 +452,6 @@ module.exports.postPosePreponseQuestion = async (req, res) => {
   }
   try {
     const ReponseQuestionParVisiteur = await Question.findById(id);
-    console.log(ReponseQuestionParVisiteur);
-
     var mailOptions = {
       from: process.env.NODE_MAILLER_EMAIL,
       to: ReponseQuestionParVisiteur.emailQuestion,
@@ -428,7 +494,6 @@ module.exports.postAjouterConseil = async (req, res) => {
       auteurConseil,
     });
     newConseil.save();
-    console.log(newConseil);
     res.status(201).json("Enregistrement du conseil avec succès");
   } catch (error) {
     console.log(error.message);
@@ -440,28 +505,31 @@ module.exports.postAjouterConseil = async (req, res) => {
   }
 };
 module.exports.postAjouterLaboratoire = async (req, res) => {
-  const { designationExamen, prixExamen } = req.body;
+  const { designationExamen, prixExamen, nomLaboratoire } = req.body;
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
     const newLaboratoire = new Laboratoire({
+      nomLaboratoire,
       designationExamen,
       prixExamen,
     });
     newLaboratoire.save();
-    res.status(201).json("Enregistrement dans le laboratoire avec succès");
+    res
+      .status(201)
+      .json("Enregistrement de l'examen dans le laboratoire avec succès");
   } catch (error) {
     console.log(error.message);
     res
       .status(500)
       .json(
-        `Quelque chose de mauvais s'est passé au cours de l'ajout dans le laboratoire`
+        `Quelque chose de mauvais s'est passé au cours de l'ajout de l'examen dans le laboratoire`
       );
   }
-  console.log(designationExamen, prixExamen);
 };
+
 module.exports.postAjouterPosition = async (req, res) => {
   //Capture des erreur au cours de la modification
   const errors = validationResult(req);
@@ -489,15 +557,12 @@ module.exports.postAjouterPosition = async (req, res) => {
       );
   }
 };
-module.exports.postPositionDisponible = async (req, res) => {
-  const { designationExamen, prixExamen } = req.body;
-};
+
 module.exports.putAjouterAssurance = async (req, res) => {
   const { id } = req.params;
   const { contenueAssurance } = req.body; //obtenue à partir du formulaire
   const idTable = 0; //pour obtenir le premier element du tableau
   let unSeulProduit = {}; //pour ajouter des proprites au resultat de medicament
-  const assurance = null;
 
   //Capture des erreur au cours de la modification
   const errors = validationResult(req);
@@ -650,7 +715,6 @@ module.exports.putConseil = async (req, res) => {
       contenueConseil,
       auteurConseil,
     });
-    console.log(modifierConseil);
     res.status(200).json(modifierConseil);
   } catch (error) {
     console.log(error.message);
@@ -695,8 +759,6 @@ module.exports.postInscription = async (req, res) => {
   const verify = Math.floor(Math.random() * 10000000 + 1);
 
   let { password, confPassword, ...others } = req.body;
-
-  console.log(password, confPassword, others);
   //Capture des erreur au cours de la validation
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -818,7 +880,6 @@ module.exports.postInscription = async (req, res) => {
 module.exports.postConnexion = async (req, res) => {
   const userEmail = req.body.email;
   const userPassword = req.body.password;
-  console.log(userEmail, userPassword);
   //Capture des erreur au cours de la validation
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -827,7 +888,7 @@ module.exports.postConnexion = async (req, res) => {
   try {
     //On verifie si l'email existe déja avant de l'enregister
     const existeEmail = await User.findOne({ email: userEmail });
-    if (!existeEmail) return res.status(203).json(`L'email n'existe pas`);
+    if (!existeEmail) return res.status(203).json(`L'email ou le mot de passe n'existe pas`);
 
     //Si l'utilisateur (email) existe, on verifie le mot de passe
     const verifiePassword = bcrypt.compareSync(
@@ -835,22 +896,20 @@ module.exports.postConnexion = async (req, res) => {
       existeEmail.password
     );
     if (!verifiePassword)
-      return res.status(203).json(`Le mot de passe n'existe pas`);
+      return res.status(203).json(`L'email ou le mot de passe n'existe pas`);
     const activation = await User.findOne({ email: userEmail });
     if (!activation.active)
       return res
         .status(203)
         .json(
-          `Votre compte n'est pas encore activé. Vous devez l'activer à partir du lien envoyé sur votre compte`
+          `Votre compte n'est pas encore activé. Vous devez l'activer à partir du lien envoyé sur votre compte email`
         );
     //Quand l'utilisateur est authentifié, on crée le JWT
     const { password, active, PasseGenere, verification, ...payload } =
       existeEmail._doc;
     const token = createToken(payload);
-    console.log(token);
     res.cookie("access_token", token, {
       expires: new Date(Date.now() + 3600 * 1000 * 24 * 180 * 1), //second min hour days year
-      // secure: true,
       path: "/",
       httpOnly: true, // backend only
       sameSite: "strict", // set to none for cross-request
@@ -896,17 +955,17 @@ module.exports.postDeconnexion = (req, res) => {
   } catch (error) {
     res
       .status(500)
-      .json(
-        `Quelque chose de mauvais s'est passé au cours de la deconnexion`
-      );
+      .json(`Quelque chose de mauvais s'est passé au cours de la deconnexion`);
   }
 };
 
 //Modifier un utilisateur
 module.exports.getUtilisateurConnecter = async (req, res) => {
-  const idUtilisateur = req.user;
+  const idUtilisateur = req.user._id;
+  // const idUtilisateur = res.cookie.info_utilisateur;
+  console.log(idUtilisateur);
   try {
-    const modifierUtilisateur = await User.findOne(idUtilisateur);
+    const modifierUtilisateur = await User.findOne({ _id: idUtilisateur });
 
     const { password, ...other } = modifierUtilisateur._doc;
     res.status(200).json({ ...other });
@@ -922,8 +981,6 @@ module.exports.getUtilisateurConnecter = async (req, res) => {
 module.exports.getVerification = async (req, res) => {
   const { verify } = req.query;
   const id = req.cookies.info_utilisateur;
-  console.log(verify);
-  console.log(req.cookies.info_utilisateur);
   if (!verify)
     return res
       .status(403)
@@ -934,13 +991,14 @@ module.exports.getVerification = async (req, res) => {
       return res
         .status(403)
         .json("Le compte n'a pas été trouvé pendant la vérification");
-    console.log(verifierInscription);
     if (verifierInscription.verification == null)
       return res.status(403).json("Erreur pendant la vérification");
     if (verify != verifierInscription.verification)
       return res
         .status(403)
-        .json(`Ce lien avec l'identifiant ${verify} n'est plus valide, veuillez contacter l'administrateur par email`);
+        .json(
+          `Ce lien avec l'identifiant ${verify} n'est plus valide, veuillez contacter l'administrateur par email`
+        );
 
     const activeUtilisateur = await User.findByIdAndUpdate(id, {
       active: true,
@@ -949,7 +1007,6 @@ module.exports.getVerification = async (req, res) => {
     console.log(activeUtilisateur);
 
     await User.findByIdAndUpdate(id, { verification: "" });
-    console.log(activeUtilisateur);
     res.status(200).json("Votre compte a été activé avec succès");
   } catch (error) {
     console.log(error);
@@ -962,7 +1019,6 @@ module.exports.getVerification = async (req, res) => {
 };
 module.exports.getUnUtilisateur = async (req, res) => {
   const { id } = req.params;
-  console.log("lalongueur " + id)
   try {
     const UnUtilisateur = await User.findOne({ _id: id });
     const { password, ...other } = UnUtilisateur._doc;
@@ -1014,7 +1070,6 @@ module.exports.putUtilisateur = async (req, res) => {
       utilisateur,
       admin,
     });
-    console.log(UtilisateurStatut);
     res
       .status(200)
       .json(`Le statut de ${UtilisateurStatut.nom} a été modifié avec succès`);
@@ -1030,7 +1085,6 @@ module.exports.putUtilisateur = async (req, res) => {
 module.exports.putPosition = async (req, res) => {
   const { id } = req.params;
   const { positionDisponible } = req.body;
-  console.log(positionDisponible);
   //Capture des erreur au cours de la modification
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -1040,7 +1094,6 @@ module.exports.putPosition = async (req, res) => {
     const position = await Position.findByIdAndUpdate(id, {
       positionDisponible,
     });
-    console.log(position);
     res.status(200).json("Modification de position disponible avec succès");
   } catch (error) {
     console.log(error);
@@ -1098,7 +1151,6 @@ module.exports.deleteConseil = async (req, res) => {
   const { id } = req.params;
   try {
     const SupprimerConseil = await Conseil.findByIdAndDelete(id);
-    console.log(SupprimerConseil);
     if (SupprimerConseil == null)
       return res
         .status(200)
@@ -1136,7 +1188,6 @@ module.exports.deleteUtilisateur = async (req, res) => {
   const { id } = req.params;
   try {
     const SupprimerUtilisateur = await User.findByIdAndDelete(id);
-    console.log(SupprimerUtilisateur);
     if (SupprimerUtilisateur == null)
       return res
         .status(200)
@@ -1155,7 +1206,6 @@ module.exports.deleteMedicament = async (req, res) => {
   const { id } = req.params;
   try {
     const SupprimerMedicament = await Medicament.findByIdAndDelete(id);
-    console.log(SupprimerMedicament);
     if (SupprimerMedicament == null)
       return res
         .status(200)
@@ -1176,7 +1226,6 @@ module.exports.deleteFichierDocument = async (req, res) => {
     const SupprimerFichierDocument = await FichierDocument.findByIdAndDelete(
       id
     );
-    console.log(SupprimerFichierDocument);
     if (SupprimerFichierDocument == null)
       return res
         .status(200)
@@ -1195,7 +1244,6 @@ module.exports.deleteQuestion = async (req, res) => {
   const { id } = req.params;
   try {
     const SupprimerQuestion = await Question.findByIdAndDelete(id);
-    console.log(SupprimerQuestion);
     if (SupprimerQuestion == null)
       return res
         .status(200)

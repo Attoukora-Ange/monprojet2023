@@ -7,6 +7,8 @@ const Router_utilisateur = require("./Routes/utilisateur.routes");
 const Router_admin = require("./Routes/admin.routes");
 
 const App = express();
+App.use(express.urlencoded({ extended: true }));
+App.use(express.json());
 App.use(
   cors({
     origin: "http://localhost:3000",
@@ -18,7 +20,6 @@ App.use(
 );
 
 App.use(cookie());
-App.use(express.json());
 
 App.use("/api/admin", Router_admin);
 App.use("/api/utilisateur", Router_utilisateur);
